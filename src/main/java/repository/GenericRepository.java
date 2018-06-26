@@ -5,6 +5,7 @@ import org.hibernate.Session;
 import util.HibernateUtil;
 
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Optional;
 
 @Slf4j
@@ -14,9 +15,18 @@ public abstract class GenericRepository<T, K> {
 
     @SuppressWarnings("unchecked")
     GenericRepository() {
-        type = (Class<T>) ((ParameterizedType) this.getClass()
-                .getGenericSuperclass())
-                .getActualTypeArguments()[0];
+
+        Type genericSuperClass = getClass().getGenericSuperclass();
+
+        ParameterizedType parametrizedType = null;
+        while (parametrizedType == null) {
+            if ((genericSuperClass instanceof ParameterizedType)) {
+                parametrizedType = (ParameterizedType) genericSuperClass;
+            } else {
+                genericSuperClass = ((Class<?>) genericSuperClass).getGenericSuperclass();
+            }
+        }
+        type = (Class<T>) parametrizedType.getActualTypeArguments()[0];
     }
 
 
@@ -31,6 +41,20 @@ public abstract class GenericRepository<T, K> {
             log.error(e.getMessage(), e);
         }
     }
+
+    public void update(T entity){
+        try(
+                Session session = HibernateUtil.openSession()
+        ){
+            session.getTransaction().begin();
+            session.update(entity);
+            session.getTransaction().commit();
+        }catch (Exception e){
+            log.error(e.getMessage(), e);
+        }
+    }
+
+
 
     public Optional<T> get(K key){
         try(
